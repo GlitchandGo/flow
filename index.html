@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎵 Flow</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div id="gameContainer">
@@ -41,14 +44,14 @@
       </div>
       <div id="beamContainer"><div id="beamFill"></div></div>
       <div id="feedback"></div>
-      
+
       <!-- Hit Zone Bar -->
       <div id="hitZoneBar">
         <div class="hitZone" id="hitZone1"></div>
         <div class="hitZone" id="hitZone2"></div>
         <div class="hitZone" id="hitZone3"></div>
       </div>
-      
+
       <!-- Lanes -->
       <div class="lane" id="lane1"></div>
       <div class="lane" id="lane2"></div>
@@ -70,5 +73,9 @@
       <button class="pauseButton" id="quitButton">Quit</button>
     </div>
   </div>
+
+  <!-- External Scripts -->
+  <script src="game.js"></script>
+  <script src="ui.js"></script>
 </body>
 </html>
