@@ -41,7 +41,16 @@ let notes = [];
 let currentNoteIndex = 0;
 let gameStartTime = 0;
 let laneCount = 3;
-const noteSpeed = 1.5; // seconds for note to fall from top to hit bar
+const noteSpeed = 0.7; // SECONDS for note to fall from top to bar (was 1.5)
+const hitBarHeight = 100; // px (was 60)
+const noteSize = 60; // px (was 52 for circle)
+
+// --- HIT RANGES ---
+const HIT_WINDOWS = {
+    perfect: 0.25,
+    good: 0.58,
+    ok: 0.90
+};
 
 // --- SCREEN NAVIGATION ---
 function showScreen(name) {
@@ -131,20 +140,24 @@ async function startGame(song) {
     notes = beatmap.notes.map(n => ({...n, hit: false}));
     currentNoteIndex = 0;
     gameStartTime = null;
+    hitFeedbacks = [];
 
-    // Start music after short delay for countdown
     setTimeout(() => {
         audio.play();
         gameStartTime = performance.now();
         requestAnimationFrame(gameLoop);
-    }, 400);
+    }, 1400); // 1.4s: 1s song offset, 0.4s for "Flow!" text
 }
+
+// --- HIT FEEDBACK ---
+let hitFeedbacks = []; // {x, y, text, time}
 
 function gameLoop(now) {
     if (!gameStartTime) return;
     const elapsed = (now - gameStartTime) / 1000;
     drawNotes(elapsed);
     checkMissedNotes(elapsed);
+    drawHitFeedbacks();
 
     // End condition
     if (audio.ended || (currentNoteIndex >= notes.length && elapsed > notes[notes.length - 1].time + 1)) {
@@ -159,8 +172,8 @@ function drawNotes(elapsed) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawStaticLanes();
 
-    // Draw falling notes
-    const hitY = canvas.height - 30;
+    // Draw falling notes (squares now)
+    const hitY = canvas.height - hitBarHeight / 2;
     notes.forEach(note => {
         if (note.hit) return;
         const appearTime = note.time - noteSpeed;
@@ -168,17 +181,19 @@ function drawNotes(elapsed) {
         const t = (elapsed - appearTime) / noteSpeed;
         if (t < 0 || t > 1.2) return;
         const laneWidth = canvas.width / laneCount;
-        const x = note.lane * laneWidth + laneWidth / 2;
-        const y = hitY * t;
-        ctx.beginPath();
-        ctx.arc(x, y, 26, 0, 2 * Math.PI);
+        const x = note.lane * laneWidth + laneWidth / 2 - noteSize / 2;
+        const y = hitY * t - noteSize / 2;
+        ctx.save();
         ctx.fillStyle = "#41c9ff";
+        ctx.strokeStyle = "#6ffcff";
         ctx.shadowColor = "#6ffcff";
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 15;
         ctx.globalAlpha = 0.95;
-        ctx.fill();
+        ctx.fillRect(x, y, noteSize, noteSize);
+        ctx.strokeRect(x, y, noteSize, noteSize);
         ctx.globalAlpha = 1;
         ctx.shadowBlur = 0;
+        ctx.restore();
     });
 }
 
@@ -194,12 +209,12 @@ function drawStaticLanes() {
         ctx.lineTo((canvas.width / 3) * i, canvas.height);
         ctx.stroke();
     }
-    // Translucent hit bar
+    // Bigger hit bar
     ctx.fillStyle = 'rgba(105,220,255,0.18)';
-    ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
+    ctx.fillRect(0, canvas.height - hitBarHeight, canvas.width, hitBarHeight);
     ctx.strokeStyle = '#a066ff99';
     ctx.lineWidth = 4;
-    ctx.strokeRect(0, canvas.height - 60, canvas.width, 60);
+    ctx.strokeRect(0, canvas.height - hitBarHeight, canvas.width, hitBarHeight);
 }
 
 // --- GAMEPLAY INPUT ---
@@ -221,18 +236,30 @@ canvas.addEventListener('pointerdown', e => {
 function hitNote(lane) {
     if (!gameStartTime) return;
     const now = (performance.now() - gameStartTime) / 1000;
-    // Find closest unhit note in this lane within timing window
     let hit = false;
     for (let i = currentNoteIndex; i < notes.length; i++) {
         const note = notes[i];
         if (note.hit) continue;
         if (note.lane !== lane) continue;
         const dt = Math.abs(note.time - now);
-        if (dt < 0.21) { // +/-210ms window
+        let rating = "";
+        let pts = 0;
+        if (dt <= HIT_WINDOWS.perfect) {
+            rating = "Perfect";
+            pts = 10;
+        } else if (dt <= HIT_WINDOWS.good) {
+            rating = "Good";
+            pts = 8;
+        } else if (dt <= HIT_WINDOWS.ok) {
+            rating = "OK";
+            pts = 5;
+        }
+        if (rating) {
             note.hit = true;
-            score += Math.max(100 - Math.floor(dt * 400), 50);
+            score += pts;
             combo++;
             updateGameUI();
+            showHitFeedback(lane, rating);
             hit = true;
             if (i === currentNoteIndex) currentNoteIndex++;
             break;
@@ -242,6 +269,7 @@ function hitNote(lane) {
     }
     if (!hit) {
         combo = 0;
+        showHitFeedback(lane, "Miss");
         updateGameUI();
     }
 }
@@ -250,9 +278,10 @@ function checkMissedNotes(elapsed) {
     for (let i = currentNoteIndex; i < notes.length; i++) {
         const note = notes[i];
         if (note.hit) continue;
-        if (elapsed > note.time + 0.18) {
+        if (elapsed > note.time + HIT_WINDOWS.ok) {
             note.hit = true;
             combo = 0;
+            showHitFeedback(note.lane, "Miss");
             currentNoteIndex = i + 1;
             updateGameUI();
         } else {
@@ -261,6 +290,36 @@ function checkMissedNotes(elapsed) {
     }
 }
 
+// --- HIT FEEDBACK FLOATING TEXT ---
+function showHitFeedback(lane, text) {
+    const laneWidth = canvas.width / laneCount;
+    const x = lane * laneWidth + laneWidth / 2;
+    const y = canvas.height - hitBarHeight / 2;
+    hitFeedbacks.push({ x, y, text, time: performance.now() });
+}
+function drawHitFeedbacks() {
+    const ctx = canvas.getContext('2d');
+    const now = performance.now();
+    hitFeedbacks = hitFeedbacks.filter(hf => {
+        const elapsed = (now - hf.time) / 1000;
+        if (elapsed > 0.8) return false;
+        ctx.save();
+        ctx.font = 'bold 30px Arial';
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = 1 - elapsed / 0.8;
+        let color = "#fff";
+        if (hf.text === "Perfect") color = "#6ffcff";
+        else if (hf.text === "Good") color = "#41c9ff";
+        else if (hf.text === "OK") color = "#a066ff";
+        else if (hf.text === "Miss") color = "#e94fff";
+        ctx.fillStyle = color;
+        ctx.fillText(hf.text, hf.x, hf.y - 40 - 40 * elapsed);
+        ctx.restore();
+        return true;
+    });
+}
+
+// --- GAME END ---
 function endGame(newScore) {
     // Save score, update mastery
     if (newScore > selectedSong.highScore) {
