@@ -1,1 +1,194 @@
-jsushd
+body {
+    background: #0c0026;
+    margin: 0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    overflow: hidden;
+}
+
+.screen {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    z-index: 1;
+    transition: opacity 0.4s;
+}
+
+.screen.active {
+    display: flex;
+    opacity: 1;
+}
+
+#logo {
+    font-family: 'Pacifico', cursive;
+    font-size: 5rem;
+    color: #e94fff;
+    text-shadow: 0 0 40px #e94fff, 0 0 80px #6ffcff;
+    margin-bottom: 2rem;
+    margin-top: 2rem;
+    animation: neon-glow 1.8s infinite alternate;
+    letter-spacing: 0.1em;
+}
+
+@keyframes neon-glow {
+    from { text-shadow: 0 0 20px #e94fff, 0 0 40px #6ffcff; }
+    to { text-shadow: 0 0 70px #e94fff, 0 0 120px #6ffcff; }
+}
+
+.neon-btn {
+    background: transparent;
+    border: 3px solid #41c9ff;
+    border-radius: 1.5rem;
+    color: #41c9ff;
+    font-size: 2.5rem;
+    padding: 1.5rem 3rem;
+    margin: 1.5rem 0.5rem;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 0px #41c9ff;
+    outline: none;
+    position: relative;
+}
+
+.neon-btn:hover, .neon-btn:focus {
+    background: rgba(65, 201, 255, 0.1);
+    box-shadow: 0 0 30px #41c9ff, 0 0 10px #a066ff;
+}
+
+.neon-btn.settings {
+    font-size: 2rem;
+    padding: 1rem 2rem;
+    border-color: #a066ff;
+    color: #a066ff;
+}
+
+.neon-btn.small {
+    font-size: 1.2rem;
+    padding: 0.6rem 1.2rem;
+    border-width: 2px;
+}
+
+.subtitle {
+    color: #6ffcff;
+    font-size: 1.2rem;
+    margin-top: 1rem;
+    text-shadow: 0 0 10px #6ffcff;
+}
+
+#song-select h2 {
+    color: #e94fff;
+    text-shadow: 0 0 24px #e94fff;
+    margin-bottom: 1.5rem;
+}
+
+#song-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    margin-bottom: 2rem;
+    width: 90vw;
+    max-width: 400px;
+}
+
+.song-entry {
+    background: rgba(12, 0, 38, 0.76);
+    border: 2px solid #41c9ff;
+    border-radius: 1rem;
+    padding: 1.2rem 2rem;
+    color: #fff;
+    box-shadow: 0 0 10px #41c9ff80;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    cursor: pointer;
+    transition: box-shadow 0.2s, background 0.2s;
+    position: relative;
+}
+
+.song-entry:hover {
+    background: rgba(65, 201, 255, 0.08);
+    box-shadow: 0 0 30px #41c9ff, 0 0 10px #a066ff;
+}
+
+.song-title {
+    font-size: 1.3rem;
+    color: #6ffcff;
+    font-weight: bold;
+}
+
+.song-meta {
+    font-size: 1rem;
+    color: #a066ff;
+    margin-top: 0.3rem;
+}
+
+.song-score {
+    font-size: 1rem;
+    margin-top: 0.5rem;
+    color: #fff;
+}
+
+.mastery-medal {
+    margin-left: 0.7rem;
+    font-size: 1.3rem;
+    vertical-align: middle;
+    filter: drop-shadow(0 0 2px #ffd700);
+}
+
+#countdown {
+    background: rgba(0, 0, 0, 0.93);
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+#countdown-number {
+    font-size: 6rem;
+    color: #41c9ff;
+    text-shadow: 0 0 30px #41c9ff, 0 0 70px #a066ff;
+    animation: countdown-pop 0.8s;
+}
+
+@keyframes countdown-pop {
+    from { transform: scale(0.3); opacity: 0.5; }
+    50% { transform: scale(1.2); opacity: 1; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+#gameplay {
+    background: #0c0026;
+    justify-content: flex-end;
+    align-items: center;
+    flex-direction: column;
+    z-index: 2;
+}
+
+#game-canvas {
+    display: block;
+    margin: 0 auto;
+    background: transparent;
+    width: 100vw;
+    height: 65vh;
+}
+
+#game-ui {
+    width: 100vw;
+    display: flex;
+    justify-content: space-between;
+    padding: 1.2rem 2rem;
+    color: #41c9ff;
+    font-size: 1.3rem;
+    text-shadow: 0 0 10px #41c9ff99;
+}
+
+@media (max-width: 700px) {
+    #logo { font-size: 2.2rem; }
+    #game-canvas { height: 48vh; }
+    #game-ui { font-size: 1.1rem; padding: 0.7rem 1rem; }
+    .song-entry { padding: 1rem 1.1rem; }
+    #song-list { max-width: 98vw; }
+}
+
+::-webkit-scrollbar { width: 0; height: 0; }
