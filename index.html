@@ -1,81 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🎵 Flow</title>
-  <link rel="stylesheet" href="styles.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flow - Rhythm Game</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts for cursive neon logo -->
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div id="gameContainer">
-    <!-- Start Screen -->
-    <div id="startScreen">
-      <h1>🎵 Flow</h1>
-      <div class="levelContainer">
-        <button class="levelButton" id="level1Button">1</button>
-        <div class="starRating">⭐</div>
-      </div>
-      <div class="levelContainer">
-        <button class="levelButton" id="level2Button">2</button>
-        <div class="starRating">⭐⭐⭐</div>
-      </div>
+    <div id="startup" class="screen active">
+        <h1 id="logo">Flow</h1>
+        <button id="playBtn" class="neon-btn"><span>&#9654;</span></button>
+        <button id="settingsBtn" class="neon-btn settings">
+            <span>🛠️</span>
+        </button>
+        <p class="subtitle">Tap to the beat. Feel the flow.</p>
     </div>
-
-    <!-- Level Screen -->
-    <div id="levelScreen">
-      <h2 id="levelTitle">Level 1</h2>
-      <p id="levelDescription">Get ready to tap to the rhythm! Hit the notes when they reach the red zone for maximum points.</p>
+    <div id="song-select" class="screen">
+        <h2>Select a Song</h2>
+        <div id="song-list"></div>
+        <button id="backToStartup" class="neon-btn small">Back</button>
     </div>
-
-    <!-- Countdown -->
-    <div id="countdown">
-      <div id="countdownText">3</div>
+    <div id="countdown" class="screen">
+        <div id="countdown-number"></div>
     </div>
-
-    <!-- Game Area -->
-    <div id="gameArea">
-      <div id="scoreDisplay">Score: 0</div>
-      <div id="multiplierDisplay">Multiplier: 1x</div>
-      <div id="pauseButton">
-        <svg viewBox="0 0 24 24">
-          <rect x="6" y="4" width="4" height="16"></rect>
-          <rect x="14" y="4" width="4" height="16"></rect>
-        </svg>
-      </div>
-      <div id="beamContainer"><div id="beamFill"></div></div>
-      <div id="feedback"></div>
-
-      <!-- Hit Zone Bar -->
-      <div id="hitZoneBar">
-        <div class="hitZone" id="hitZone1"></div>
-        <div class="hitZone" id="hitZone2"></div>
-        <div class="hitZone" id="hitZone3"></div>
-      </div>
-
-      <!-- Lanes -->
-      <div class="lane" id="lane1"></div>
-      <div class="lane" id="lane2"></div>
-      <div class="lane" id="lane3"></div>
+    <div id="gameplay" class="screen">
+        <canvas id="game-canvas"></canvas>
+        <div id="game-ui">
+            <div id="score">Score: 0</div>
+            <div id="combo">Combo: 0</div>
+        </div>
     </div>
-
-    <!-- Game Over Screen -->
-    <div id="gameOverScreen">
-      <h2>Game Over!</h2>
-      <p id="finalScore">Final Score: 0</p>
-      <button class="pauseButton" id="restartButton">Play Again</button>
-      <button class="pauseButton" id="menuButton">Main Menu</button>
-    </div>
-
-    <!-- Pause Screen -->
-    <div id="pauseScreen">
-      <h2>Game Paused</h2>
-      <button class="pauseButton" id="resumeButton">Resume</button>
-      <button class="pauseButton" id="quitButton">Quit</button>
-    </div>
-  </div>
-
-  <!-- External Scripts -->
-  <script src="game.js"></script>
-  <script src="ui.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
