@@ -39,11 +39,10 @@ let audio = null;
 let beatmap = null;
 let notes = [];
 let currentNoteIndex = 0;
-let gameStartTime = 0;
 let laneCount = 3;
-const noteSpeed = 0.7; // SECONDS for note to fall from top to bar (was 1.5)
-const hitBarHeight = 100; // px (was 60)
-const noteSize = 60; // px (was 52 for circle)
+const noteSpeed = 0.7; // seconds for note to fall from top to hit bar
+const hitBarHeight = 130; // px, make it big!
+const noteSize = 60; // px
 
 // --- HIT RANGES ---
 const HIT_WINDOWS = {
@@ -139,27 +138,25 @@ async function startGame(song) {
     beatmap = await res.json();
     notes = beatmap.notes.map(n => ({...n, hit: false}));
     currentNoteIndex = 0;
-    gameStartTime = null;
     hitFeedbacks = [];
 
+    // Start music after short delay for countdown (400ms for "Flow!" text)
     setTimeout(() => {
         audio.play();
-        gameStartTime = performance.now();
         requestAnimationFrame(gameLoop);
-    }, 400); // 1.4s: 1s song offset, 0.4s for "Flow!" text
+    }, 400); // DO NOT add extra delay
 }
 
 // --- HIT FEEDBACK ---
 let hitFeedbacks = []; // {x, y, text, time}
 
-function gameLoop(now) {
-    if (!gameStartTime) return;
-    const elapsed = (now - gameStartTime) / 1000;
+function gameLoop() {
+    // Use audio.currentTime for all timing!
+    const elapsed = audio.currentTime;
     drawNotes(elapsed);
     checkMissedNotes(elapsed);
     drawHitFeedbacks();
 
-    // End condition
     if (audio.ended || (currentNoteIndex >= notes.length && elapsed > notes[notes.length - 1].time + 1)) {
         endGame(score);
         return;
@@ -172,7 +169,7 @@ function drawNotes(elapsed) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawStaticLanes();
 
-    // Draw falling notes (squares now)
+    // Draw falling notes (squares)
     const hitY = canvas.height - hitBarHeight / 2;
     notes.forEach(note => {
         if (note.hit) return;
@@ -201,12 +198,12 @@ function drawNotes(elapsed) {
 function drawStaticLanes() {
     const ctx = canvas.getContext('2d');
     // Lanes
-    for (let i = 1; i < 3; i++) {
+    for (let i = 1; i < laneCount; i++) {
         ctx.strokeStyle = '#41c9ff44';
         ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.moveTo((canvas.width / 3) * i, 0);
-        ctx.lineTo((canvas.width / 3) * i, canvas.height);
+        ctx.moveTo((canvas.width / laneCount) * i, 0);
+        ctx.lineTo((canvas.width / laneCount) * i, canvas.height);
         ctx.stroke();
     }
     // Bigger hit bar
@@ -234,8 +231,8 @@ canvas.addEventListener('pointerdown', e => {
 });
 
 function hitNote(lane) {
-    if (!gameStartTime) return;
-    const now = (performance.now() - gameStartTime) / 1000;
+    if (!audio) return;
+    const now = audio.currentTime;
     let hit = false;
     for (let i = currentNoteIndex; i < notes.length; i++) {
         const note = notes[i];
