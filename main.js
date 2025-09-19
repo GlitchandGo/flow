@@ -18,6 +18,7 @@ const screens = {
     songSelect: document.getElementById('song-select'),
     countdown: document.getElementById('countdown'),
     gameplay: document.getElementById('gameplay'),
+    endscreen: document.getElementById('endscreen')
 };
 const playBtn = document.getElementById('playBtn');
 const settingsBtn = document.getElementById('settingsBtn');
@@ -28,10 +29,17 @@ const canvas = document.getElementById('game-canvas');
 const scoreDiv = document.getElementById('score');
 const songTitleDiv = document.getElementById('song-title');
 
+// Endscreen
+const endscreen = document.getElementById('endscreen');
+const endscreenTitle = document.getElementById('endscreen-title');
+const endscreenScore = document.getElementById('endscreen-score');
+const endscreenBtn = document.getElementById('endscreen-btn');
+
 // --- GAME STATE ---
 let selectedSong = null;
-let gameState = 'startup'; // 'startup', 'songSelect', 'countdown', 'gameplay'
+let gameState = 'startup'; // 'startup', 'songSelect', 'countdown', 'gameplay', 'endscreen'
 let score = 0;
+let failed = false;
 
 // --- GAMEPLAY STATE ---
 let audio = null;
@@ -43,11 +51,11 @@ const noteSpeed = 0.7; // seconds for note to fall from top to hit bar
 const hitBarHeight = 130; // px, make it big!
 const noteSize = 60; // px
 
-// --- HIT RANGES ---
+// --- BUFFED HIT RANGES ---
 const HIT_WINDOWS = {
-    perfect: 0.25,
-    good: 0.58,
-    ok: 0.90
+    perfect: 0.40,   // was 0.25
+    good: 0.85,      // was 0.58
+    ok: 1.40         // was 0.90
 };
 
 // --- SCREEN NAVIGATION ---
@@ -127,6 +135,7 @@ function startCountdown(song) {
 async function startGame(song) {
     showScreen('gameplay');
     score = 0;
+    failed = false;
     updateGameUI(song);
     setupCanvas();
     // Load audio and beatmap
@@ -153,13 +162,26 @@ let hitFeedbacks = []; // {x, y, text, time}
 
 function gameLoop() {
     // Use audio.currentTime for all timing!
+    if (gameState !== 'gameplay') return;
+
     const elapsed = audio.currentTime;
     drawNotes(elapsed);
     checkMissedNotes(elapsed);
     drawHitFeedbacks();
 
-    if (audio.ended || (currentNoteIndex >= notes.length && elapsed > notes[notes.length - 1].time + 1)) {
-        endGame(score);
+    // End if failed (handled in checkMissedNotes/hitNote)
+    if (failed) return;
+
+    // If all notes finished (last note hit or missed) and music is playing, end level
+    const lastNote = notes[notes.length - 1];
+    const allNotesProcessed = currentNoteIndex >= notes.length;
+    if (allNotesProcessed) {
+        // Stop music right away!
+        if (!audio.paused) {
+            audio.pause();
+            audio.currentTime = 0;
+        }
+        showEndscreen(false); // Not failed, so Level Complete
         return;
     }
     requestAnimationFrame(gameLoop);
@@ -180,7 +202,6 @@ function drawNotes(elapsed) {
         if (t < 0 || t > 1.2) return;
         const laneWidth = canvas.width / laneCount;
         const x = note.lane * laneWidth + laneWidth / 2 - noteSize / 2;
-
         // Notes spawn at the very top of the canvas (y = 0 - noteSize/2)
         const y = t * (hitY - (0 - noteSize/2)) + (0 - noteSize/2);
 
@@ -219,8 +240,9 @@ function drawStaticLanes() {
 }
 
 // --- GAMEPLAY INPUT ---
+
 window.addEventListener('keydown', e => {
-    if (gameState !== 'gameplay') return;
+    if (gameState !== 'gameplay' || failed) return;
     let lane = null;
     if (e.key === "ArrowLeft" || e.key === "a") lane = 0;
     if (e.key === "ArrowUp" || e.key === "s") lane = 1;
@@ -228,7 +250,7 @@ window.addEventListener('keydown', e => {
     if (lane !== null) hitNote(lane);
 });
 canvas.addEventListener('pointerdown', e => {
-    if (gameState !== 'gameplay') return;
+    if (gameState !== 'gameplay' || failed) return;
     const laneWidth = canvas.width / laneCount;
     const lane = Math.floor(e.offsetX / laneWidth);
     hitNote(lane);
@@ -237,40 +259,49 @@ canvas.addEventListener('pointerdown', e => {
 function hitNote(lane) {
     if (!audio) return;
     const now = audio.currentTime;
-    let hit = false;
+    let bestNoteIdx = -1, bestDt = 999;
+    // Find the closest unhit note in this lane within any hit window
     for (let i = currentNoteIndex; i < notes.length; i++) {
         const note = notes[i];
         if (note.hit) continue;
         if (note.lane !== lane) continue;
         const dt = Math.abs(note.time - now);
+        if (dt < bestDt && dt <= HIT_WINDOWS.ok) {
+            bestNoteIdx = i;
+            bestDt = dt;
+        }
+        // Notes are sorted by time, so break as soon as dt would only increase
+        if (note.time - now > HIT_WINDOWS.ok) break;
+    }
+    if (bestNoteIdx !== -1) {
+        const note = notes[bestNoteIdx];
         let rating = "";
         let pts = 0;
-        if (dt <= HIT_WINDOWS.perfect) {
+        if (bestDt <= HIT_WINDOWS.perfect) {
             rating = "Perfect";
             pts = 10;
-        } else if (dt <= HIT_WINDOWS.good) {
+        } else if (bestDt <= HIT_WINDOWS.good) {
             rating = "Good";
             pts = 8;
-        } else if (dt <= HIT_WINDOWS.ok) {
+        } else if (bestDt <= HIT_WINDOWS.ok) {
             rating = "OK";
             pts = 5;
         }
-        if (rating) {
-            note.hit = true;
-            score += pts;
-            updateGameUI(selectedSong);
-            showHitFeedback(lane, rating);
-            hit = true;
-            if (i === currentNoteIndex) currentNoteIndex++;
-            break;
-        } else if (note.time - now > 0.3) {
-            break; // Notes are sorted
-        }
-    }
-    if (!hit) {
-        showHitFeedback(lane, "Miss");
+        note.hit = true;
+        score += pts;
         updateGameUI(selectedSong);
+        showHitFeedback(lane, rating);
+        if (bestNoteIdx === currentNoteIndex) {
+            // Advance currentNoteIndex to next unhit note
+            while (currentNoteIndex < notes.length && notes[currentNoteIndex].hit) currentNoteIndex++;
+        }
+        // If rating is OK or worse, fail immediately!
+        if (rating === "OK") {
+            failLevel();
+        }
+        // If that was the last note, end will be handled by gameLoop
     }
+    // ELSE: No note in window for this lane, so do nothing!
 }
 
 function checkMissedNotes(elapsed) {
@@ -282,6 +313,9 @@ function checkMissedNotes(elapsed) {
             showHitFeedback(note.lane, "Miss");
             currentNoteIndex = i + 1;
             updateGameUI(selectedSong);
+            // Fail instantly on a miss!
+            failLevel();
+            break;
         } else {
             break;
         }
@@ -318,17 +352,35 @@ function drawHitFeedbacks() {
 }
 
 // --- GAME END ---
-function endGame(newScore) {
-    // Save score, update mastery
-    if (newScore > selectedSong.highScore) {
-        selectedSong.highScore = newScore;
+function failLevel() {
+    failed = true;
+    // Stop music instantly!
+    if (audio && !audio.paused) {
+        audio.pause();
+        audio.currentTime = 0;
     }
-    // Mastery
-    if (newScore > 45000) selectedSong.mastery = 'gold';
-    else if (newScore > 20000) selectedSong.mastery = 'silver';
-    else if (newScore > 10000) selectedSong.mastery = 'bronze';
-    showSongSelect();
+    showEndscreen(true);
 }
+
+function showEndscreen(failed) {
+    // Save score, update mastery (only if not failed)
+    if (!failed && score > selectedSong.highScore) {
+        selectedSong.highScore = score;
+    }
+    if (!failed) {
+        if (score > 45000) selectedSong.mastery = 'gold';
+        else if (score > 20000) selectedSong.mastery = 'silver';
+        else if (score > 10000) selectedSong.mastery = 'bronze';
+    }
+    endscreenTitle.textContent = failed ? "Level Failed!" : "Level Complete!";
+    endscreenScore.textContent = "Score: " + score;
+    endscreenBtn.textContent = "Back to Song Select";
+    showScreen('endscreen');
+}
+
+endscreenBtn.onclick = () => {
+    showSongSelect();
+};
 
 // --- UI HELPERS ---
 function updateGameUI(songObj) {
