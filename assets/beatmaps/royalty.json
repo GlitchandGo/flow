@@ -1,11 +1,11 @@
 {
   "songID": "royalty",
   "notes": [
-    { "time": 2.693, "lane": 1 },
-    { "time": 3.109, "lane": 2 },
-    { "time": 3.43, "lane": 0 },
-    { "time": 3.784, "lane": 1 },
-    { "time": 4.13, "lane": 1 },
+    { "time": 1.693, "lane": 1 },
+    { "time": 2.109, "lane": 2 },
+    { "time": 2.43, "lane": 0 },
+    { "time": 2.784, "lane": 1 },
+    { "time": 3.13, "lane": 1 },
     { "time": 6.267, "lane": 0 },
     { "time": 7.425, "lane": 1 },
     { "time": 7.849, "lane": 2 },
