@@ -26,13 +26,12 @@ const backToStartup = document.getElementById('backToStartup');
 const countdownNumber = document.getElementById('countdown-number');
 const canvas = document.getElementById('game-canvas');
 const scoreDiv = document.getElementById('score');
-const comboDiv = document.getElementById('combo');
+const songTitleDiv = document.getElementById('song-title');
 
 // --- GAME STATE ---
 let selectedSong = null;
 let gameState = 'startup'; // 'startup', 'songSelect', 'countdown', 'gameplay'
 let score = 0;
-let combo = 0;
 
 // --- GAMEPLAY STATE ---
 let audio = null;
@@ -128,8 +127,7 @@ function startCountdown(song) {
 async function startGame(song) {
     showScreen('gameplay');
     score = 0;
-    combo = 0;
-    updateGameUI();
+    updateGameUI(song);
     setupCanvas();
     // Load audio and beatmap
     audio = new Audio(song.audio);
@@ -139,6 +137,9 @@ async function startGame(song) {
     notes = beatmap.notes.map(n => ({...n, hit: false}));
     currentNoteIndex = 0;
     hitFeedbacks = [];
+
+    // Set song/level title in UI
+    songTitleDiv.textContent = song.title;
 
     // Start music after short delay for countdown (400ms for "Flow!" text)
     setTimeout(() => {
@@ -179,7 +180,10 @@ function drawNotes(elapsed) {
         if (t < 0 || t > 1.2) return;
         const laneWidth = canvas.width / laneCount;
         const x = note.lane * laneWidth + laneWidth / 2 - noteSize / 2;
-        const y = hitY * t - noteSize / 2;
+
+        // Notes spawn at the very top of the canvas (y = 0 - noteSize/2)
+        const y = t * (hitY - (0 - noteSize/2)) + (0 - noteSize/2);
+
         ctx.save();
         ctx.fillStyle = "#41c9ff";
         ctx.strokeStyle = "#6ffcff";
@@ -197,7 +201,7 @@ function drawNotes(elapsed) {
 // --- STATIC LANE LINES AND HIT BAR ---
 function drawStaticLanes() {
     const ctx = canvas.getContext('2d');
-    // Lanes
+    // Lanes - draw all the way down the full canvas
     for (let i = 1; i < laneCount; i++) {
         ctx.strokeStyle = '#41c9ff44';
         ctx.lineWidth = 4;
@@ -206,7 +210,7 @@ function drawStaticLanes() {
         ctx.lineTo((canvas.width / laneCount) * i, canvas.height);
         ctx.stroke();
     }
-    // Bigger hit bar
+    // Hit bar at the bottom as before
     ctx.fillStyle = 'rgba(105,220,255,0.18)';
     ctx.fillRect(0, canvas.height - hitBarHeight, canvas.width, hitBarHeight);
     ctx.strokeStyle = '#a066ff99';
@@ -254,8 +258,7 @@ function hitNote(lane) {
         if (rating) {
             note.hit = true;
             score += pts;
-            combo++;
-            updateGameUI();
+            updateGameUI(selectedSong);
             showHitFeedback(lane, rating);
             hit = true;
             if (i === currentNoteIndex) currentNoteIndex++;
@@ -265,9 +268,8 @@ function hitNote(lane) {
         }
     }
     if (!hit) {
-        combo = 0;
         showHitFeedback(lane, "Miss");
-        updateGameUI();
+        updateGameUI(selectedSong);
     }
 }
 
@@ -277,10 +279,9 @@ function checkMissedNotes(elapsed) {
         if (note.hit) continue;
         if (elapsed > note.time + HIT_WINDOWS.ok) {
             note.hit = true;
-            combo = 0;
             showHitFeedback(note.lane, "Miss");
             currentNoteIndex = i + 1;
-            updateGameUI();
+            updateGameUI(selectedSong);
         } else {
             break;
         }
@@ -330,15 +331,16 @@ function endGame(newScore) {
 }
 
 // --- UI HELPERS ---
-function updateGameUI() {
-    scoreDiv.textContent = `Score: ${score}`;
-    comboDiv.textContent = `Combo: ${combo}`;
+function updateGameUI(songObj) {
+    scoreDiv.textContent = score;
+    if (songObj) songTitleDiv.textContent = songObj.title;
 }
 
 // --- CANVAS RESIZE ---
 function setupCanvas() {
+    // Fill the ENTIRE screen, including behind top UI
     canvas.width = window.innerWidth;
-    canvas.height = Math.floor(window.innerHeight * 0.65);
+    canvas.height = window.innerHeight;
     drawStaticLanes();
 }
 window.addEventListener('resize', () => {
