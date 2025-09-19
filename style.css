@@ -221,7 +221,36 @@ body {
     z-index: 1;
 }
 
-/* MOBILE */
+/* Endscreen Modal */
+#endscreen {
+    background: rgba(12,0,38,0.95);
+    z-index: 20;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#endscreen-title {
+    font-family: 'Orbitron', 'Rajdhani', Arial, sans-serif;
+    font-size: 2.6rem;
+    color: #e94fff;
+    text-shadow: 0 0 30px #a066ff;
+    margin-bottom: 2rem;
+}
+
+#endscreen-score {
+    font-family: 'Orbitron', 'Rajdhani', Arial, sans-serif;
+    font-size: 2rem;
+    color: #41c9ff;
+    margin-bottom: 2.4rem;
+}
+
+#endscreen-btn {
+    margin-top: 1.4rem;
+    font-size: 1.4rem;
+    padding: 0.7rem 2.2rem;
+}
+
 @media (max-width: 700px) {
     #logo { font-size: 1.5rem; }
     #game-canvas { height: 100vh; max-height: 100vh; }
@@ -230,6 +259,9 @@ body {
     .song-entry { padding: 0.6rem 0.7rem; }
     #song-list { max-width: 99vw; }
     #game-ui { padding-top: 0.7rem; }
+    #endscreen-title { font-size: 1.5rem; }
+    #endscreen-score { font-size: 1.2rem; }
+    #endscreen-btn { font-size: 1.1rem; }
 }
 
 ::-webkit-scrollbar { width: 0; height: 0; }
