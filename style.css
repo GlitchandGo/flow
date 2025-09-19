@@ -3,6 +3,7 @@ body {
     margin: 0;
     font-family: 'Segoe UI', Arial, sans-serif;
     overflow: hidden;
+    height: 100vh;
 }
 
 .screen {
@@ -14,6 +15,7 @@ body {
     flex-direction: column;
     z-index: 1;
     transition: opacity 0.4s;
+    overflow: hidden;
 }
 
 .screen.active {
@@ -23,11 +25,11 @@ body {
 
 #logo {
     font-family: 'Pacifico', cursive;
-    font-size: 5rem;
+    font-size: 4.2rem;
     color: #e94fff;
     text-shadow: 0 0 40px #e94fff, 0 0 80px #6ffcff;
-    margin-bottom: 2rem;
-    margin-top: 2rem;
+    margin-bottom: 1.4rem;
+    margin-top: 1.4rem;
     animation: neon-glow 1.8s infinite alternate;
     letter-spacing: 0.1em;
 }
@@ -42,9 +44,9 @@ body {
     border: 3px solid #41c9ff;
     border-radius: 1.5rem;
     color: #41c9ff;
-    font-size: 2.5rem;
-    padding: 1.5rem 3rem;
-    margin: 1.5rem 0.5rem;
+    font-size: 2.2rem;
+    padding: 1.1rem 2.1rem;
+    margin: 1rem 0.3rem;
     cursor: pointer;
     transition: background 0.2s, box-shadow 0.2s;
     box-shadow: 0 0 0px #41c9ff;
@@ -58,45 +60,45 @@ body {
 }
 
 .neon-btn.settings {
-    font-size: 2rem;
-    padding: 1rem 2rem;
+    font-size: 1.3rem;
+    padding: 0.7rem 1.2rem;
     border-color: #a066ff;
     color: #a066ff;
 }
 
 .neon-btn.small {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     padding: 0.6rem 1.2rem;
     border-width: 2px;
 }
 
 .subtitle {
     color: #6ffcff;
-    font-size: 1.2rem;
-    margin-top: 1rem;
+    font-size: 1rem;
+    margin-top: 0.6rem;
     text-shadow: 0 0 10px #6ffcff;
 }
 
 #song-select h2 {
     color: #e94fff;
     text-shadow: 0 0 24px #e94fff;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 #song-list {
     display: flex;
     flex-direction: column;
-    gap: 1.2rem;
-    margin-bottom: 2rem;
-    width: 90vw;
-    max-width: 400px;
+    gap: 0.8rem;
+    margin-bottom: 1.3rem;
+    width: 95vw;
+    max-width: 350px;
 }
 
 .song-entry {
     background: rgba(12, 0, 38, 0.76);
     border: 2px solid #41c9ff;
     border-radius: 1rem;
-    padding: 1.2rem 2rem;
+    padding: 1rem 1.2rem;
     color: #fff;
     box-shadow: 0 0 10px #41c9ff80;
     display: flex;
@@ -113,26 +115,26 @@ body {
 }
 
 .song-title {
-    font-size: 1.3rem;
+    font-size: 1.1rem;
     color: #6ffcff;
     font-weight: bold;
 }
 
 .song-meta {
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: #a066ff;
-    margin-top: 0.3rem;
+    margin-top: 0.2rem;
 }
 
 .song-score {
-    font-size: 1rem;
-    margin-top: 0.5rem;
+    font-size: 0.95rem;
+    margin-top: 0.3rem;
     color: #fff;
 }
 
 .mastery-medal {
-    margin-left: 0.7rem;
-    font-size: 1.3rem;
+    margin-left: 0.5rem;
+    font-size: 1.1rem;
     vertical-align: middle;
     filter: drop-shadow(0 0 2px #ffd700);
 }
@@ -145,7 +147,7 @@ body {
 }
 
 #countdown-number {
-    font-size: 6rem;
+    font-size: 4.2rem;
     color: #41c9ff;
     text-shadow: 0 0 30px #41c9ff, 0 0 70px #a066ff;
     animation: countdown-pop 0.8s;
@@ -163,32 +165,71 @@ body {
     align-items: center;
     flex-direction: column;
     z-index: 2;
-}
-
-#game-canvas {
-    display: block;
-    margin: 0 auto;
-    background: transparent;
-    width: 100vw;
-    height: 65vh;
+    position: relative;
+    overflow: hidden;
+    padding: 0;
 }
 
 #game-ui {
     width: 100vw;
     display: flex;
-    justify-content: space-between;
-    padding: 1.2rem 2rem;
-    color: #41c9ff;
-    font-size: 1.3rem;
-    text-shadow: 0 0 10px #41c9ff99;
+    flex-direction: column;
+    align-items: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 5;
+    pointer-events: none;
+    padding-top: 1.2rem;
+    /* Let canvas show behind */
 }
 
+#song-title {
+    font-family: 'Orbitron', 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+    color: #a066ff;
+    font-size: 2.2rem;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    text-shadow: 0 0 16px #a066ff99, 0 4px 18px #000;
+    margin-bottom: 0.3rem;
+    pointer-events: none;
+}
+
+#score {
+    font-family: 'Orbitron', 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+    font-size: 3.2rem;
+    color: #41c9ff;
+    font-weight: 700;
+    text-shadow: 0 0 30px #41c9ff, 0 2px 18px #000;
+    background: none;
+    padding: 0;
+    margin: 0 0 0.4rem 0;
+    border-radius: 0;
+    min-width: 0;
+    text-align: center;
+    pointer-events: none;
+}
+
+#game-canvas {
+    display: block;
+    position: absolute;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    min-height: 100vh;
+    max-height: 100vh;
+    z-index: 1;
+}
+
+/* MOBILE */
 @media (max-width: 700px) {
-    #logo { font-size: 2.2rem; }
-    #game-canvas { height: 48vh; }
-    #game-ui { font-size: 1.1rem; padding: 0.7rem 1rem; }
-    .song-entry { padding: 1rem 1.1rem; }
-    #song-list { max-width: 98vw; }
+    #logo { font-size: 1.5rem; }
+    #game-canvas { height: 100vh; max-height: 100vh; }
+    #song-title { font-size: 1.25rem; }
+    #score { font-size: 1.85rem; }
+    .song-entry { padding: 0.6rem 0.7rem; }
+    #song-list { max-width: 99vw; }
+    #game-ui { padding-top: 0.7rem; }
 }
 
 ::-webkit-scrollbar { width: 0; height: 0; }
