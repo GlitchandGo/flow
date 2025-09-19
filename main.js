@@ -146,7 +146,7 @@ async function startGame(song) {
         audio.play();
         gameStartTime = performance.now();
         requestAnimationFrame(gameLoop);
-    }, 1400); // 1.4s: 1s song offset, 0.4s for "Flow!" text
+    }, 400); // 1.4s: 1s song offset, 0.4s for "Flow!" text
 }
 
 // --- HIT FEEDBACK ---
