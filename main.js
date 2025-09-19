@@ -53,9 +53,9 @@ const noteSize = 60; // px
 
 // --- BUFFED HIT RANGES ---
 const HIT_WINDOWS = {
-    perfect: 0.40,   // was 0.25
-    good: 0.85,      // was 0.58
-    ok: 1.40         // was 0.90
+    perfect: 0.10,   // was 0.25
+    good: 0.30,      // was 0.58
+    ok: 0.50         // was 0.90
 };
 
 // --- SCREEN NAVIGATION ---
