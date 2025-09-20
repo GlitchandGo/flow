@@ -3,7 +3,7 @@ const songs = [
     {
         id: 'royalty',
         title: 'Royalty',
-        artist: 'Your Artist',
+        artist: 'Egzod + Maestro Chives',
         difficulty: 4,
         highScore: 0,
         mastery: null,
