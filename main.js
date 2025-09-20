@@ -4,7 +4,7 @@ const songs = [
         id: 'royalty',
         title: 'Royalty',
         artist: 'Egzod + Maestro Chives',
-        difficulty: 4,
+        difficulty: 2,
         highScore: 0,
         mastery: null,
         audio: 'assets/music/royalty.mp3',
