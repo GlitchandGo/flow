@@ -52,9 +52,9 @@ const noteSize = 60;
 
 // --- HARDER HIT RANGES ---
 const HIT_WINDOWS = {
-    perfect: 0.10,
-    good: 0.30,
-    ok: 0.50
+    perfect: 0.18,
+    good: 0.36,
+    ok: 0.54
 };
 
 // --- SCORING ---
