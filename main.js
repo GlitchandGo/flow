@@ -39,7 +39,6 @@ const endscreenBtn = document.getElementById('endscreen-btn');
 let selectedSong = null;
 let gameState = 'startup'; // 'startup', 'songSelect', 'countdown', 'gameplay', 'endscreen'
 let score = 0;
-let failed = false;
 
 // --- GAMEPLAY STATE ---
 let audio = null;
@@ -47,16 +46,38 @@ let beatmap = null;
 let notes = [];
 let currentNoteIndex = 0;
 let laneCount = 3;
-const noteSpeed = 0.7; // seconds for note to fall from top to hit bar
-const hitBarHeight = 130; // px, make it big!
-const noteSize = 60; // px
+const noteSpeed = 0.7;
+const hitBarHeight = 130;
+const noteSize = 60;
 
-// --- BUFFED HIT RANGES ---
+// --- HARDER HIT RANGES ---
 const HIT_WINDOWS = {
-    perfect: 0.10,   // was 0.25
-    good: 0.30,      // was 0.58
-    ok: 0.50         // was 0.90
+    perfect: 0.25,
+    good: 0.50,
+    ok: 0.80
 };
+
+// --- SCORING ---
+let perfectPerNote = 10;
+
+// --- HIGH SCORE STORAGE ---
+function loadHighScores() {
+    let local = {};
+    try {
+        local = JSON.parse(localStorage.getItem("flowHighScores") || "{}");
+    } catch {}
+    songs.forEach(song => {
+        if (typeof local[song.id] === "number") song.highScore = local[song.id];
+    });
+}
+function saveHighScore(songId, score) {
+    let local = {};
+    try {
+        local = JSON.parse(localStorage.getItem("flowHighScores") || "{}");
+    } catch {}
+    local[songId] = score;
+    localStorage.setItem("flowHighScores", JSON.stringify(local));
+}
 
 // --- SCREEN NAVIGATION ---
 function showScreen(name) {
@@ -87,8 +108,9 @@ function renderSongList() {
         const entry = document.createElement('div');
         entry.className = 'song-entry';
         entry.innerHTML = `
-            <div class="song-title">${song.title} - <span style="font-size:1rem;">${song.artist}</span></div>
-            <div class="song-meta">Difficulty: ${'⭐'.repeat(song.difficulty)}</div>
+            <div class="song-title">${song.title} <span style="font-size:1rem;">- ${song.artist}</span></div>
+            <div class="song-meta">Difficulty: <span style="color:#ffd700">${'★'.repeat(song.difficulty)}</span></div>
+            <div class="song-divider"></div>
             <div class="song-score">
                 High Score: <span>${song.highScore}</span>
                 ${song.mastery ? renderMedal(song.mastery) : ''}
@@ -135,53 +157,38 @@ function startCountdown(song) {
 async function startGame(song) {
     showScreen('gameplay');
     score = 0;
-    failed = false;
     updateGameUI(song);
     setupCanvas();
-    // Load audio and beatmap
     audio = new Audio(song.audio);
     audio.currentTime = 0;
     const res = await fetch(song.beatmap);
     beatmap = await res.json();
-    notes = beatmap.notes.map(n => ({...n, hit: false}));
+    notes = beatmap.notes.map(n => ({...n, hit: false, result: null}));
     currentNoteIndex = 0;
     hitFeedbacks = [];
-
-    // Set song/level title in UI
     songTitleDiv.textContent = song.title;
-
-    // Start music after short delay for countdown (400ms for "Flow!" text)
+    perfectPerNote = 10000 / notes.length;
     setTimeout(() => {
         audio.play();
         requestAnimationFrame(gameLoop);
-    }, 400); // DO NOT add extra delay
+    }, 400);
 }
 
-// --- HIT FEEDBACK ---
-let hitFeedbacks = []; // {x, y, text, time}
+let hitFeedbacks = [];
 
 function gameLoop() {
-    // Use audio.currentTime for all timing!
     if (gameState !== 'gameplay') return;
-
     const elapsed = audio.currentTime;
     drawNotes(elapsed);
     checkMissedNotes(elapsed);
     drawHitFeedbacks();
-
-    // End if failed (handled in checkMissedNotes/hitNote)
-    if (failed) return;
-
-    // If all notes finished (last note hit or missed) and music is playing, end level
-    const lastNote = notes[notes.length - 1];
     const allNotesProcessed = currentNoteIndex >= notes.length;
     if (allNotesProcessed) {
-        // Stop music right away!
         if (!audio.paused) {
             audio.pause();
             audio.currentTime = 0;
         }
-        showEndscreen(false); // Not failed, so Level Complete
+        showEndscreen();
         return;
     }
     requestAnimationFrame(gameLoop);
@@ -191,8 +198,6 @@ function drawNotes(elapsed) {
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawStaticLanes();
-
-    // Draw falling notes (squares)
     const hitY = canvas.height - hitBarHeight / 2;
     notes.forEach(note => {
         if (note.hit) return;
@@ -202,9 +207,7 @@ function drawNotes(elapsed) {
         if (t < 0 || t > 1.2) return;
         const laneWidth = canvas.width / laneCount;
         const x = note.lane * laneWidth + laneWidth / 2 - noteSize / 2;
-        // Notes spawn at the very top of the canvas (y = 0 - noteSize/2)
         const y = t * (hitY - (0 - noteSize/2)) + (0 - noteSize/2);
-
         ctx.save();
         ctx.fillStyle = "#41c9ff";
         ctx.strokeStyle = "#6ffcff";
@@ -219,10 +222,8 @@ function drawNotes(elapsed) {
     });
 }
 
-// --- STATIC LANE LINES AND HIT BAR ---
 function drawStaticLanes() {
     const ctx = canvas.getContext('2d');
-    // Lanes - draw all the way down the full canvas
     for (let i = 1; i < laneCount; i++) {
         ctx.strokeStyle = '#41c9ff44';
         ctx.lineWidth = 4;
@@ -231,7 +232,6 @@ function drawStaticLanes() {
         ctx.lineTo((canvas.width / laneCount) * i, canvas.height);
         ctx.stroke();
     }
-    // Hit bar at the bottom as before
     ctx.fillStyle = 'rgba(105,220,255,0.18)';
     ctx.fillRect(0, canvas.height - hitBarHeight, canvas.width, hitBarHeight);
     ctx.strokeStyle = '#a066ff99';
@@ -239,10 +239,8 @@ function drawStaticLanes() {
     ctx.strokeRect(0, canvas.height - hitBarHeight, canvas.width, hitBarHeight);
 }
 
-// --- GAMEPLAY INPUT ---
-
 window.addEventListener('keydown', e => {
-    if (gameState !== 'gameplay' || failed) return;
+    if (gameState !== 'gameplay') return;
     let lane = null;
     if (e.key === "ArrowLeft" || e.key === "a") lane = 0;
     if (e.key === "ArrowUp" || e.key === "s") lane = 1;
@@ -250,7 +248,7 @@ window.addEventListener('keydown', e => {
     if (lane !== null) hitNote(lane);
 });
 canvas.addEventListener('pointerdown', e => {
-    if (gameState !== 'gameplay' || failed) return;
+    if (gameState !== 'gameplay') return;
     const laneWidth = canvas.width / laneCount;
     const lane = Math.floor(e.offsetX / laneWidth);
     hitNote(lane);
@@ -260,7 +258,6 @@ function hitNote(lane) {
     if (!audio) return;
     const now = audio.currentTime;
     let bestNoteIdx = -1, bestDt = 999;
-    // Find the closest unhit note in this lane within any hit window
     for (let i = currentNoteIndex; i < notes.length; i++) {
         const note = notes[i];
         if (note.hit) continue;
@@ -270,7 +267,6 @@ function hitNote(lane) {
             bestNoteIdx = i;
             bestDt = dt;
         }
-        // Notes are sorted by time, so break as soon as dt would only increase
         if (note.time - now > HIT_WINDOWS.ok) break;
     }
     if (bestNoteIdx !== -1) {
@@ -279,29 +275,23 @@ function hitNote(lane) {
         let pts = 0;
         if (bestDt <= HIT_WINDOWS.perfect) {
             rating = "Perfect";
-            pts = 10;
+            pts = perfectPerNote;
         } else if (bestDt <= HIT_WINDOWS.good) {
             rating = "Good";
-            pts = 8;
+            pts = perfectPerNote * 0.7;
         } else if (bestDt <= HIT_WINDOWS.ok) {
             rating = "OK";
-            pts = 5;
+            pts = perfectPerNote * 0.4;
         }
         note.hit = true;
+        note.result = rating;
         score += pts;
         updateGameUI(selectedSong);
         showHitFeedback(lane, rating);
         if (bestNoteIdx === currentNoteIndex) {
-            // Advance currentNoteIndex to next unhit note
             while (currentNoteIndex < notes.length && notes[currentNoteIndex].hit) currentNoteIndex++;
         }
-        // If rating is OK or worse, fail immediately!
-        if (rating === "OK") {
-            failLevel();
-        }
-        // If that was the last note, end will be handled by gameLoop
     }
-    // ELSE: No note in window for this lane, so do nothing!
 }
 
 function checkMissedNotes(elapsed) {
@@ -310,19 +300,16 @@ function checkMissedNotes(elapsed) {
         if (note.hit) continue;
         if (elapsed > note.time + HIT_WINDOWS.ok) {
             note.hit = true;
+            note.result = "Miss";
             showHitFeedback(note.lane, "Miss");
             currentNoteIndex = i + 1;
             updateGameUI(selectedSong);
-            // Fail instantly on a miss!
-            failLevel();
-            break;
         } else {
             break;
         }
     }
 }
 
-// --- HIT FEEDBACK FLOATING TEXT ---
 function showHitFeedback(lane, text) {
     const laneWidth = canvas.width / laneCount;
     const x = lane * laneWidth + laneWidth / 2;
@@ -351,29 +338,17 @@ function drawHitFeedbacks() {
     });
 }
 
-// --- GAME END ---
-function failLevel() {
-    failed = true;
-    // Stop music instantly!
-    if (audio && !audio.paused) {
-        audio.pause();
-        audio.currentTime = 0;
+function showEndscreen() {
+    let finalScore = Math.round(score);
+    if (finalScore > selectedSong.highScore) {
+        selectedSong.highScore = finalScore;
+        saveHighScore(selectedSong.id, finalScore);
     }
-    showEndscreen(true);
-}
-
-function showEndscreen(failed) {
-    // Save score, update mastery (only if not failed)
-    if (!failed && score > selectedSong.highScore) {
-        selectedSong.highScore = score;
-    }
-    if (!failed) {
-        if (score > 45000) selectedSong.mastery = 'gold';
-        else if (score > 20000) selectedSong.mastery = 'silver';
-        else if (score > 10000) selectedSong.mastery = 'bronze';
-    }
-    endscreenTitle.textContent = failed ? "Level Failed!" : "Level Complete!";
-    endscreenScore.textContent = "Score: " + score;
+    if (finalScore > 9000) selectedSong.mastery = 'gold';
+    else if (finalScore > 7000) selectedSong.mastery = 'silver';
+    else if (finalScore > 4000) selectedSong.mastery = 'bronze';
+    endscreenTitle.textContent = "Level Complete!";
+    endscreenScore.textContent = "Score: " + finalScore;
     endscreenBtn.textContent = "Back to Song Select";
     showScreen('endscreen');
 }
@@ -382,15 +357,12 @@ endscreenBtn.onclick = () => {
     showSongSelect();
 };
 
-// --- UI HELPERS ---
 function updateGameUI(songObj) {
-    scoreDiv.textContent = score;
+    scoreDiv.textContent = Math.round(score);
     if (songObj) songTitleDiv.textContent = songObj.title;
 }
 
-// --- CANVAS RESIZE ---
 function setupCanvas() {
-    // Fill the ENTIRE screen, including behind top UI
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     drawStaticLanes();
@@ -399,5 +371,5 @@ window.addEventListener('resize', () => {
     if (gameState === 'gameplay') setupCanvas();
 });
 
-// --- INIT ---
+loadHighScores();
 showScreen('startup');
