@@ -9,6 +9,17 @@ const songs = [
         mastery: null,
         audio: 'assets/music/royalty.mp3',
         beatmap: 'assets/beatmaps/royalty.json'
+    },
+    {
+        id: 'ares',
+        title: 'Ares',
+        artist: 'Unknown',
+        difficulty: 5,
+        highScore: 0,
+        mastery: null,
+        audio: 'assets/music/ares.mp3',
+        beatmap: 'assets/beatmaps/ares.json',
+        startTime: 45 // start at 0:45
     }
 ];
 
@@ -154,13 +165,16 @@ function startCountdown(song) {
 }
 
 // --- GAMEPLAY ---
+let gameEnded = false;
+
 async function startGame(song) {
     showScreen('gameplay');
     score = 0;
+    gameEnded = false;
     updateGameUI(song);
     setupCanvas();
     audio = new Audio(song.audio);
-    audio.currentTime = 0;
+    audio.currentTime = song.startTime || 0;
     const res = await fetch(song.beatmap);
     beatmap = await res.json();
     notes = beatmap.notes.map(n => ({...n, hit: false, result: null}));
@@ -176,19 +190,26 @@ async function startGame(song) {
 
 let hitFeedbacks = [];
 
+function endGameAndShowScreen() {
+    if (gameEnded) return;
+    gameEnded = true;
+    // Stop music on end
+    if (audio && !audio.paused) {
+        audio.pause();
+        audio.currentTime = 0;
+    }
+    showEndscreen();
+}
+
 function gameLoop() {
-    if (gameState !== 'gameplay') return;
+    if (gameState !== 'gameplay' || gameEnded) return;
     const elapsed = audio.currentTime;
     drawNotes(elapsed);
     checkMissedNotes(elapsed);
     drawHitFeedbacks();
     const allNotesProcessed = currentNoteIndex >= notes.length;
-    if (allNotesProcessed) {
-        if (!audio.paused) {
-            audio.pause();
-            audio.currentTime = 0;
-        }
-        showEndscreen();
+    if (allNotesProcessed || audio.ended) {
+        endGameAndShowScreen();
         return;
     }
     requestAnimationFrame(gameLoop);
@@ -240,7 +261,7 @@ function drawStaticLanes() {
 }
 
 window.addEventListener('keydown', e => {
-    if (gameState !== 'gameplay') return;
+    if (gameState !== 'gameplay' || gameEnded) return;
     let lane = null;
     if (e.key === "ArrowLeft" || e.key === "a") lane = 0;
     if (e.key === "ArrowUp" || e.key === "s") lane = 1;
@@ -248,14 +269,14 @@ window.addEventListener('keydown', e => {
     if (lane !== null) hitNote(lane);
 });
 canvas.addEventListener('pointerdown', e => {
-    if (gameState !== 'gameplay') return;
+    if (gameState !== 'gameplay' || gameEnded) return;
     const laneWidth = canvas.width / laneCount;
     const lane = Math.floor(e.offsetX / laneWidth);
     hitNote(lane);
 });
 
 function hitNote(lane) {
-    if (!audio) return;
+    if (!audio || gameEnded) return;
     const now = audio.currentTime;
     let bestNoteIdx = -1, bestDt = 999;
     for (let i = currentNoteIndex; i < notes.length; i++) {
@@ -295,6 +316,7 @@ function hitNote(lane) {
 }
 
 function checkMissedNotes(elapsed) {
+    if (gameEnded) return;
     for (let i = currentNoteIndex; i < notes.length; i++) {
         const note = notes[i];
         if (note.hit) continue;
@@ -304,6 +326,9 @@ function checkMissedNotes(elapsed) {
             showHitFeedback(note.lane, "Miss");
             currentNoteIndex = i + 1;
             updateGameUI(selectedSong);
+            // End game on first miss:
+            endGameAndShowScreen();
+            break;
         } else {
             break;
         }
