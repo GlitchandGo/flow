@@ -3,7 +3,7 @@ const songs = [
     {
         id: 'moonlight',
         title: 'Moonlight',
-        artist: 'Unknown',
+        artist: 'Flow',
         difficulty: 1,
         highScore: 0,
         mastery: null,
@@ -24,7 +24,7 @@ const songs = [
     {
         id: 'ares',
         title: 'Ares',
-        artist: 'Unknown',
+        artist: 'ZAM + Reverse Prodigy + Flourier',
         difficulty: 5,
         highScore: 0,
         mastery: null,
@@ -35,7 +35,7 @@ const songs = [
     {
         id: 'rush-e',
         title: 'Rush E',
-        artist: 'Unknown',
+        artist: 'Sheet Music Boss',
         difficulty: 5,
         highScore: 0,
         mastery: null,
