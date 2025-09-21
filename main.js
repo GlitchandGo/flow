@@ -1,6 +1,17 @@
 // --- SONG DATA ---
 const songs = [
     {
+        id: 'moonlight',
+        title: 'Moonlight',
+        artist: 'Unknown',
+        difficulty: 1,
+        highScore: 0,
+        mastery: null,
+        audio: 'assets/music/moonlight.mp3',
+        beatmap: 'assets/beatmaps/moonlight.json',
+        isTutorial: true
+    },
+    {
         id: 'royalty',
         title: 'Royalty',
         artist: 'Egzod + Maestro Chives',
@@ -13,13 +24,23 @@ const songs = [
     {
         id: 'ares',
         title: 'Ares',
-        artist: 'ZAM + Reverse Prodigy + Fourier',
+        artist: 'Unknown',
         difficulty: 5,
         highScore: 0,
         mastery: null,
         audio: 'assets/music/ares.mp3',
         beatmap: 'assets/beatmaps/ares.json',
-        startTime: 45 // start at 0:45
+        startTime: 45
+    },
+    {
+        id: 'rush-e',
+        title: 'Rush E',
+        artist: 'Unknown',
+        difficulty: 5,
+        highScore: 0,
+        mastery: null,
+        audio: 'assets/music/rush-e.mp3',
+        beatmap: 'assets/beatmaps/rush-e.json'
     }
 ];
 
@@ -45,11 +66,21 @@ const endscreen = document.getElementById('endscreen');
 const endscreenTitle = document.getElementById('endscreen-title');
 const endscreenScore = document.getElementById('endscreen-score');
 const endscreenBtn = document.getElementById('endscreen-btn');
+const endscreenProgress = (() => {
+    let el = document.getElementById('endscreen-progress');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'endscreen-progress';
+        endscreen.insertBefore(el, endscreenScore.nextSibling);
+    }
+    return el;
+})();
 
 // --- GAME STATE ---
 let selectedSong = null;
-let gameState = 'startup'; // 'startup', 'songSelect', 'countdown', 'gameplay', 'endscreen'
+let gameState = 'startup';
 let score = 0;
+let tutorialTimeouts = [];
 
 // --- GAMEPLAY STATE ---
 let audio = null;
@@ -60,34 +91,55 @@ let laneCount = 3;
 const noteSpeed = 0.7;
 const hitBarHeight = 130;
 const noteSize = 60;
-
-// --- HARDER HIT RANGES ---
-const HIT_WINDOWS = {
-    perfect: 0.18,
-    good: 0.36,
-    ok: 0.54
-};
-
-// --- SCORING ---
+const HIT_WINDOWS = { perfect: 0.18, good: 0.36, ok: 0.54 };
 let perfectPerNote = 10;
+
+// --- SCORE STARS & MASTERIES ---
+const SCORE_STARS = [
+    { threshold: 8000, emoji: '⭐️', count: 5 },
+    { threshold: 7000, emoji: '⭐️', count: 4 },
+    { threshold: 6000, emoji: '⭐️', count: 3 },
+    { threshold: 5000, emoji: '⭐️', count: 2 },
+    { threshold: 4000, emoji: '⭐️', count: 1 }
+];
+const SCORE_MASTERIES = [
+    { threshold: 9900, emoji: '🏅', name: 'platinum' },
+    { threshold: 9500, emoji: '🥇', name: 'gold' },
+    { threshold: 9000, emoji: '🥈', name: 'silver' },
+    { threshold: 8500, emoji: '🥉', name: 'bronze' }
+];
+
+// --- FIRST TIME LAUNCH, FORCE MOONLIGHT ---
+(function firstTimeTutorial() {
+    if (!localStorage.getItem('flowFirstLaunchDone')) {
+        localStorage.setItem('flowFirstLaunchDone', 'true');
+        localStorage.setItem('flowLastSong', 'moonlight');
+        setTimeout(() => {
+            startCountdown(songs.find(s => s.id === 'moonlight'));
+        }, 250);
+    } else {
+        // If user was last playing a song, auto-select it (optional)
+        const last = localStorage.getItem('flowLastSong');
+        if (last && songs.some(s => s.id === last)) {
+            selectedSong = songs.find(s => s.id === last);
+        }
+    }
+})();
 
 // --- HIGH SCORE STORAGE ---
 function loadHighScores() {
     let local = {};
-    try {
-        local = JSON.parse(localStorage.getItem("flowHighScores") || "{}");
-    } catch {}
+    try { local = JSON.parse(localStorage.getItem("flowHighScores") || "{}"); } catch {}
     songs.forEach(song => {
         if (typeof local[song.id] === "number") song.highScore = local[song.id];
     });
 }
 function saveHighScore(songId, score) {
     let local = {};
-    try {
-        local = JSON.parse(localStorage.getItem("flowHighScores") || "{}");
-    } catch {}
+    try { local = JSON.parse(localStorage.getItem("flowHighScores") || "{}"); } catch {}
     local[songId] = score;
     localStorage.setItem("flowHighScores", JSON.stringify(local));
+    localStorage.setItem('flowLastSong', songId);
 }
 
 // --- SCREEN NAVIGATION ---
@@ -95,18 +147,13 @@ function showScreen(name) {
     Object.keys(screens).forEach(scr => screens[scr].classList.remove('active'));
     screens[name].classList.add('active');
     gameState = name;
+    if (name !== 'gameplay') clearTutorial();
 }
 
 // --- STARTUP SCREEN ---
-playBtn.onclick = () => {
-    showSongSelect();
-};
-backToStartup.onclick = () => {
-    showScreen('startup');
-};
-settingsBtn.onclick = () => {
-    alert('Settings coming soon!');
-};
+playBtn.onclick = () => { showSongSelect(); };
+backToStartup.onclick = () => { showScreen('startup'); };
+settingsBtn.onclick = () => { alert('Settings coming soon!'); };
 
 // --- SONG SELECT SCREEN ---
 function showSongSelect() {
@@ -119,22 +166,34 @@ function renderSongList() {
         const entry = document.createElement('div');
         entry.className = 'song-entry';
         entry.innerHTML = `
-            <div class="song-title">${song.title} <span style="font-size:1rem;">- ${song.artist}</span></div>
-            <div class="song-meta">Difficulty: <span style="color:#ffd700">${'★'.repeat(song.difficulty)}</span></div>
+            <div class="song-title">
+                ${song.title} <span style="font-size:1rem;">- ${song.artist || ""}</span>
+                ${song.isTutorial ? '<span style="color:#41c9ff;font-size:1rem;"> (Tutorial)</span>' : ''}
+            </div>
+            <div class="song-meta">Difficulty: <span style="font-size:1.2em">${'🔥'.repeat(song.difficulty)}</span></div>
             <div class="song-divider"></div>
             <div class="song-score">
-                High Score: <span>${song.highScore}</span>
-                ${song.mastery ? renderMedal(song.mastery) : ''}
+                High Score: <span>${song.highScore}</span> ${renderScoreStars(song.highScore)} ${renderMasteryMedal(song.highScore)}
             </div>
         `;
         entry.onclick = () => startCountdown(song);
         songListDiv.appendChild(entry);
     });
 }
-function renderMedal(type) {
-    if (type === 'gold') return '<span class="mastery-medal">🥇</span>';
-    if (type === 'silver') return '<span class="mastery-medal">🥈</span>';
-    if (type === 'bronze') return '<span class="mastery-medal">🥉</span>';
+function renderScoreStars(score) {
+    let stars = '';
+    for (let i = SCORE_STARS.length - 1; i >= 0; i--) {
+        if (score >= SCORE_STARS[i].threshold) {
+            stars = ' '.repeat(SCORE_STARS[i].count - 1) + '⭐️'.repeat(SCORE_STARS[i].count);
+            break;
+        }
+    }
+    return stars ? `<span style="color:gold;font-size:1.3em;margin-left:0.3em;">${stars}</span>` : '';
+}
+function renderMasteryMedal(score) {
+    for (const m of SCORE_MASTERIES) {
+        if (score >= m.threshold) return `<span style="font-size:1.3em;margin-left:0.2em;">${m.emoji}</span>`;
+    }
     return '';
 }
 
@@ -166,6 +225,7 @@ function startCountdown(song) {
 
 // --- GAMEPLAY ---
 let gameEnded = false;
+let tutorialActive = false;
 
 async function startGame(song) {
     showScreen('gameplay');
@@ -174,7 +234,18 @@ async function startGame(song) {
     updateGameUI(song);
     setupCanvas();
     audio = new Audio(song.audio);
-    audio.currentTime = song.startTime || 0;
+    let setTime = song.startTime || 0;
+    let ready = false;
+
+    audio.currentTime = setTime;
+    audio.addEventListener('seeked', () => {
+        if (ready) return;
+        ready = true;
+        audio.play();
+        requestAnimationFrame(gameLoop);
+    });
+    setTimeout(() => { if (!ready) { audio.play(); requestAnimationFrame(gameLoop); } }, 700);
+
     const res = await fetch(song.beatmap);
     beatmap = await res.json();
     notes = beatmap.notes.map(n => ({...n, hit: false, result: null}));
@@ -182,10 +253,60 @@ async function startGame(song) {
     hitFeedbacks = [];
     songTitleDiv.textContent = song.title;
     perfectPerNote = 10000 / notes.length;
-    setTimeout(() => {
-        audio.play();
-        requestAnimationFrame(gameLoop);
-    }, 400);
+
+    // --- TUTORIAL FOR MOONLIGHT ---
+    if (song.id === 'moonlight') {
+        tutorialActive = true;
+        runTutorial();
+    }
+}
+
+function runTutorial() {
+    clearTutorial();
+    const overlay = document.createElement('div');
+    overlay.id = 'tutorial-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '50';
+    overlay.style.background = 'rgba(12,0,38,0.93)';
+    overlay.style.fontFamily = 'Orbitron,Arial,sans-serif';
+    overlay.style.fontSize = '2.1rem';
+    overlay.style.color = '#41c9ff';
+    overlay.style.textAlign = 'center';
+    overlay.style.transition = 'opacity 0.5s';
+    overlay.style.pointerEvents = 'none';
+
+    overlay.textContent = "Welcome to Flow";
+    document.body.appendChild(overlay);
+
+    tutorialTimeouts.push(setTimeout(() => {
+        overlay.textContent = "Tap when a note reaches the bar below!";
+        overlay.style.fontSize = '1.5rem';
+        overlay.style.color = '#fff';
+    }, 2250));
+    tutorialTimeouts.push(setTimeout(() => {
+        overlay.textContent = "Get Flowing!";
+        overlay.style.fontSize = '2.3rem';
+        overlay.style.color = '#e94fff';
+    }, 4500));
+    tutorialTimeouts.push(setTimeout(() => {
+        overlay.style.opacity = '0';
+        tutorialActive = false;
+        setTimeout(() => { overlay.remove(); }, 700);
+    }, 6800));
+}
+function clearTutorial() {
+    tutorialTimeouts.forEach(t => clearTimeout(t));
+    tutorialTimeouts = [];
+    const overlay = document.getElementById('tutorial-overlay');
+    if (overlay) overlay.remove();
+    tutorialActive = false;
 }
 
 let hitFeedbacks = [];
@@ -193,7 +314,6 @@ let hitFeedbacks = [];
 function endGameAndShowScreen() {
     if (gameEnded) return;
     gameEnded = true;
-    // Stop music on end
     if (audio && !audio.paused) {
         audio.pause();
         audio.currentTime = 0;
@@ -261,7 +381,7 @@ function drawStaticLanes() {
 }
 
 window.addEventListener('keydown', e => {
-    if (gameState !== 'gameplay' || gameEnded) return;
+    if (gameState !== 'gameplay' || gameEnded || tutorialActive) return;
     let lane = null;
     if (e.key === "ArrowLeft" || e.key === "a") lane = 0;
     if (e.key === "ArrowUp" || e.key === "s") lane = 1;
@@ -269,14 +389,14 @@ window.addEventListener('keydown', e => {
     if (lane !== null) hitNote(lane);
 });
 canvas.addEventListener('pointerdown', e => {
-    if (gameState !== 'gameplay' || gameEnded) return;
+    if (gameState !== 'gameplay' || gameEnded || tutorialActive) return;
     const laneWidth = canvas.width / laneCount;
     const lane = Math.floor(e.offsetX / laneWidth);
     hitNote(lane);
 });
 
 function hitNote(lane) {
-    if (!audio || gameEnded) return;
+    if (!audio || gameEnded || tutorialActive) return;
     const now = audio.currentTime;
     let bestNoteIdx = -1, bestDt = 999;
     for (let i = currentNoteIndex; i < notes.length; i++) {
@@ -326,7 +446,6 @@ function checkMissedNotes(elapsed) {
             showHitFeedback(note.lane, "Miss");
             currentNoteIndex = i + 1;
             updateGameUI(selectedSong);
-            // End game on first miss:
             endGameAndShowScreen();
             break;
         } else {
@@ -363,24 +482,66 @@ function drawHitFeedbacks() {
     });
 }
 
+function getScoreStars(score) {
+    for (let i = 0; i < SCORE_STARS.length; i++) {
+        if (score >= SCORE_STARS[i].threshold) return SCORE_STARS[i].count;
+    }
+    return 0;
+}
+function getMastery(score) {
+    for (const m of SCORE_MASTERIES) {
+        if (score >= m.threshold) return m.name;
+    }
+    return null;
+}
+function getMedalEmoji(score) {
+    for (const m of SCORE_MASTERIES) {
+        if (score >= m.threshold) return m.emoji;
+    }
+    return '';
+}
+function getStarBar(score) {
+    let stars = getScoreStars(score);
+    let progress = Math.min(score / 10000, 1);
+    let bar = '';
+    let barLen = 220;
+    // Draw progress bar and faded stars
+    for (let i = 1; i <= 5; i++) {
+        const starAt = i * 0.08 + 0.16 * (i - 1); // Even spread
+        bar += `<span style="opacity:${progress > starAt ? 1 : 0.2};font-size:2rem;position:absolute;left:${20+barLen*starAt}px;top:-12px;pointer-events:none;">⭐️</span>`;
+    }
+    return `
+      <div style="width:${barLen+40}px;height:36px;position:relative;margin:0.7em auto 0.3em auto;">
+        <div style="background:#23234b;border-radius:30px;height:16px;width:${barLen}px;position:absolute;left:20px;top:16px;box-shadow:0 0 8px #8884;">
+          <div style="background:linear-gradient(90deg,#41c9ff,#e94fff);width:${Math.round(progress*barLen)}px;height:100%;border-radius:30px;transition:width 0.8s;"></div>
+        </div>
+        ${bar}
+      </div>
+    `;
+}
+
 function showEndscreen() {
     let finalScore = Math.round(score);
+    // Save best score
     if (finalScore > selectedSong.highScore) {
         selectedSong.highScore = finalScore;
         saveHighScore(selectedSong.id, finalScore);
     }
-    if (finalScore > 9000) selectedSong.mastery = 'gold';
-    else if (finalScore > 7000) selectedSong.mastery = 'silver';
-    else if (finalScore > 4000) selectedSong.mastery = 'bronze';
+
+    // Mastery
+    let mastery = getMastery(finalScore);
+    selectedSong.mastery = mastery;
+
+    // Level Complete text, score, medals, and progress bar
     endscreenTitle.textContent = "Level Complete!";
-    endscreenScore.textContent = "Score: " + finalScore;
+    endscreenScore.innerHTML = `Score: ${finalScore} ${getMedalEmoji(finalScore)}`;
+    endscreenProgress.innerHTML = getStarBar(finalScore);
+
     endscreenBtn.textContent = "Back to Song Select";
     showScreen('endscreen');
 }
 
-endscreenBtn.onclick = () => {
-    showSongSelect();
-};
+endscreenBtn.onclick = () => { showSongSelect(); };
 
 function updateGameUI(songObj) {
     scoreDiv.textContent = Math.round(score);
