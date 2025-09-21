@@ -13,7 +13,7 @@ const songs = [
     {
         id: 'ares',
         title: 'Ares',
-        artist: 'Unknown',
+        artist: 'ZAM + Reverse Prodigy + Fourier',
         difficulty: 5,
         highScore: 0,
         mastery: null,
