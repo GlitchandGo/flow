@@ -41,6 +41,7 @@ const songs = [
         mastery: null,
         audio: 'assets/music/rush-e.mp3',
         beatmap: 'assets/beatmaps/rush-e.json'
+        startTime: 15
     }
 ];
 
@@ -91,7 +92,7 @@ let laneCount = 3;
 const noteSpeed = 0.7;
 const hitBarHeight = 130;
 const noteSize = 60;
-const HIT_WINDOWS = { perfect: 0.18, good: 0.36, ok: 0.54 };
+const HIT_WINDOWS = { perfect: 0.15, good: 0.30, ok: 0.45 };
 let perfectPerNote = 10;
 
 // --- SCORE STARS & MASTERIES ---
