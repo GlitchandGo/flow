@@ -40,6 +40,16 @@ const songs = [
         mastery: null,
         audio: 'assets/music/rush-e.mp3',
         beatmap: 'assets/beatmaps/rush-e.json'
+    },
+    {
+        id: 'golden',
+        title: 'Golden',
+        artist: 'Huntrix',
+        difficulty: 3,
+        highScore: 0,
+        mastery: null,
+        audio: 'assets/music/golden.mp3',
+        beatmap: 'assets/beatmaps/golden.json
     }
 ];
 
