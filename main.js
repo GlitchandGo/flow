@@ -49,7 +49,7 @@ const songs = [
         highScore: 0,
         mastery: null,
         audio: 'assets/music/golden.mp3',
-        beatmap: 'assets/beatmaps/golden.json
+        beatmap: 'assets/beatmaps/golden.json'
     }
 ];
 
